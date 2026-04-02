@@ -1,4 +1,38 @@
-# python library for reading 1-9 sonic weather
+# SonicModbus
 
-- [model](https://www.dfrobot.com/product-2942.html)
-- [wiki](https://wiki.dfrobot.com/sen0658/docs/21684)
+Python library for reading the DFRobot SEN0658 sonic weather sensor via Modbus.
+
+- [Product page](https://www.dfrobot.com/product-2942.html)
+- [Wiki](https://wiki.dfrobot.com/sen0658/docs/21684)
+
+## Installation
+
+```bash
+pip install sonic-modbus
+```
+
+## Development
+
+```bash
+poetry install --with docs
+poetry run pytest
+```
+
+## Documentation
+
+Build HTML docs locally:
+
+```bash
+cd docs
+poetry run make html
+```
+
+Sync docs to the [GitHub wiki](https://github.com/tim-oe/SonicModBus/wiki):
+
+```bash
+./scripts/sync-wiki.sh
+```
+
+## License
+
+Apache License 2.0 - see [LICENSE](LICENSE) for details.

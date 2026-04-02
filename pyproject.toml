@@ -1,0 +1,107 @@
+[project]
+name = "sonic-modbus"
+version = "0.1.0"
+description = "Python library for reading DFRobot SEN0658 sonic weather sensor via Modbus"
+authors = [
+    { name = "tim-oe", email = "tecronin@gmail.com" },
+]
+license = { text = "Apache-2.0" }
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Hardware",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+keywords = ["modbus", "weather", "sensor", "dfrobot", "SEN0658", "sonic"]
+
+dependencies = [
+    "pymodbus (>=3.6.0,<4.0.0)",
+    "pyserial (>=3.5,<4.0.0)",
+    "py-singleton (>=1.0.0,<2.0.0)",
+    "pydantic (>=2.9.0,<3.0.0)"
+]
+
+[project.urls]
+Homepage = "https://github.com/tim-oe/SonicModBus"
+Repository = "https://github.com/tim-oe/SonicModBus"
+Issues = "https://github.com/tim-oe/SonicModBus/issues"
+
+[build-system]
+requires = ["poetry-core>=2.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+packages = [{ include = "sonic_modbus" }]
+
+[tool.poetry.group.dev.dependencies]
+coverage = "^7.6"
+pytest = "^8.3"
+pytest-mock = "^3.14"
+pytest-cov = "^7.0.0"
+pytest-asyncio = "^1.3.0"
+pylint = "^3.3"
+pyenchant = "^3.2"
+black = "^24.10"
+isort = "^5.13"
+flake8 = "^7.1"
+
+[tool.poetry.group.docs.dependencies]
+sphinx = "^8.0"
+myst-parser = "^4.0"
+sphinx-autodoc2 = ">=0.5"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["sonic_modbus"]
+branch = true
+data_file = "reports/.coverage"
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+
+[tool.coverage.html]
+directory = "reports/htmlcov"
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+src_paths = ["sonic_modbus", "tests"]
+
+[tool.pylint.format]
+max-line-length = 88
+
+[tool.pylint.spelling]
+spelling-dict = "en_US"
+spelling-private-dict-file = ".pylint-spelling-words"
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.10"
+include = ["sonic_modbus"]
+exclude = ["**/__pycache__"]
+typeCheckingMode = "basic"
+
+[tool.basedpyright]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.10"
+include = ["sonic_modbus"]
+exclude = ["**/__pycache__"]
+typeCheckingMode = "basic"
