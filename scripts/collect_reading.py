@@ -27,8 +27,9 @@ import sys
 from sonic_modbus.constants import DEFAULT_BAUDRATE, DEFAULT_DEVICE_ID, DEFAULT_PORT
 from sonic_modbus.sensor import SonicSensor
 from sonic_persistence.config import DatabaseConfig
-from sonic_persistence.database import create_session_factory, get_session
+from sonic_persistence.database import create_db_engine, get_session
 from sonic_persistence.repository import SensorReadingRepository
+from sqlalchemy.orm import sessionmaker
 
 _LOG_FORMAT = "%(asctime)s %(levelname)-8s [collect_reading] %(message)s"
 _DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
@@ -51,6 +52,27 @@ def _config_from_env() -> tuple[str, int, int, DatabaseConfig]:
         "mariadb+mysqlconnector://sonic:sonic@localhost:3306/weather",
     )
     return port, baudrate, device_id, DatabaseConfig(db_url=db_url)
+
+
+def _mask_db_url(db_url: str) -> str:
+    """Return the connection URL with username and password replaced by ``***``.
+
+    Args:
+        db_url: SQLAlchemy connection URL, e.g.
+            ``mariadb+mysqlconnector://user:pass@host:3306/db``.
+
+    Returns:
+        The URL with credentials masked, e.g.
+        ``mariadb+mysqlconnector://***:***@host:3306/db``.
+        Returns the original string unchanged if no credentials are present.
+    """
+    from urllib.parse import urlparse, urlunparse
+
+    parsed = urlparse(db_url)
+    if not parsed.username and not parsed.password:
+        return db_url
+    masked = parsed._replace(netloc=f"***:***@{parsed.hostname}:{parsed.port}")
+    return urlunparse(masked)
 
 
 def main() -> int:
@@ -92,16 +114,21 @@ def main() -> int:
         reading.rainfall_mm,
     )
 
-    log.info("Persisting to %s", db_config.db_url)
+    log.info("Persisting to %s", _mask_db_url(db_config.db_url))
 
+    engine = None
     try:
-        factory = create_session_factory(db_config)
+        engine = create_db_engine(db_config)
+        factory = sessionmaker(bind=engine)
         with get_session(factory) as session:
             entity = SensorReadingRepository(session).save(reading)
             log.info("Persisted: id=%d", entity.id)
     except Exception as exc:
         log.error("Database write failed: %s", exc)
         return 2
+    finally:
+        if engine is not None:
+            engine.dispose()
 
     return 0
 

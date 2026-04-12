@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from sonic_modbus.sensor_reading import SensorReading
 from sonic_modbus.wind_direction import WindDirection
 from sonic_persistence import DatabaseConfig, SensorReadingRepository
-from sonic_persistence.database import create_db_engine, init_db
+from sonic_persistence.database import create_db_engine, get_session, init_db
 from sonic_persistence.models import Base
 
 
@@ -142,3 +142,49 @@ class TestSensorReadingRepositoryNegativeTemperature:
         )
         entity = repo.save(reading)
         assert entity.temperature_c == pytest.approx(-15.2)
+
+
+class TestSensorReadingRepositoryGetSession:
+    """Verify that entity attributes are accessible inside the get_session block.
+
+    This replicates the production usage pattern in collect_reading.py where
+    entity.id is read while the session is still open (before commit+close).
+    The detached-instance bug (bhk3) occurs when attributes are accessed after
+    the session closes; keeping the access inside the ``with`` block is the fix.
+    """
+
+    @pytest.fixture
+    def session_factory(self, in_memory_config: DatabaseConfig):
+        engine = create_db_engine(in_memory_config)
+        Base.metadata.create_all(engine)
+        return sessionmaker(bind=engine)
+
+    def test_entity_id_accessible_inside_get_session(
+        self, session_factory, sample_reading
+    ):
+        """entity.id must be readable inside the with-block (session still open)."""
+        captured_id = None
+        with get_session(session_factory) as session:
+            entity = SensorReadingRepository(session).save(sample_reading)
+            captured_id = entity.id  # access while session is open — must not raise
+
+        assert captured_id is not None
+        assert captured_id > 0
+
+    def test_entity_id_detaches_after_session_closes(
+        self, session_factory, sample_reading
+    ):
+        """Accessing entity.id outside the with-block raises DetachedInstanceError.
+
+        This documents the incorrect pattern that caused the production bug and
+        ensures we never regress to calling log/print on the entity after close.
+        """
+        from sqlalchemy.orm.exc import DetachedInstanceError
+
+        with get_session(session_factory) as session:
+            entity = SensorReadingRepository(session).save(sample_reading)
+
+        # session is now closed and entity is expired — any attribute access
+        # that requires a DB round-trip must raise DetachedInstanceError
+        with pytest.raises(DetachedInstanceError):
+            _ = entity.wind_speed_ms  # non-PK attribute triggers lazy refresh
