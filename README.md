@@ -27,7 +27,7 @@ cd docs
 poetry run make html
 ```
 
-Sync docs to the [GitHub wiki](https://github.com/tim-oe/SonicModBus/wiki):
+Sync docs to the [GitHub wiki](https://github.com/tim-oe/SonicModBus/wiki) (runs Sphinx with [sphinx-markdown-builder](https://pypi.org/project/sphinx-markdown-builder/), then copies `_build/markdown`):
 
 ```bash
 ./scripts/sync-wiki.sh

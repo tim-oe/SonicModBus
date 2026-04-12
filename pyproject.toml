@@ -27,7 +27,9 @@ dependencies = [
     "pymodbus (>=3.6.0,<4.0.0)",
     "pyserial (>=3.5,<4.0.0)",
     "py-singleton (>=1.0.0,<2.0.0)",
-    "pydantic (>=2.9.0,<3.0.0)"
+    "pydantic (>=2.9.0,<3.0.0)",
+    "sqlalchemy (>=2.0.49,<3.0.0) ; python_version >= \"3.10\" and python_version < \"4.0\"",
+    "pyway (==0.3.32) ; python_version >= \"3.10\" and python_version < \"4.0\""
 ]
 
 [project.urls]
@@ -35,12 +37,19 @@ Homepage = "https://github.com/tim-oe/SonicModBus"
 Repository = "https://github.com/tim-oe/SonicModBus"
 Issues = "https://github.com/tim-oe/SonicModBus/issues"
 
+[project.scripts]
+collect-reading = "scripts.collect_reading:main"
+
 [build-system]
 requires = ["poetry-core>=2.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-packages = [{ include = "sonic_modbus" }]
+packages = [
+    { include = "sonic_modbus" },
+    { include = "sonic_persistence" },
+    { include = "scripts" },
+]
 
 [tool.poetry.group.dev.dependencies]
 coverage = "^7.6"
@@ -58,13 +67,15 @@ flake8 = "^7.1"
 sphinx = "^8.0"
 myst-parser = "^4.0"
 sphinx-autodoc2 = ">=0.5"
+sphinx-markdown-builder = "^0.6"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
+pythonpath = ["."]
 
 [tool.coverage.run]
-source = ["sonic_modbus"]
+source = ["sonic_modbus", "sonic_persistence"]
 branch = true
 data_file = "reports/.coverage"
 
@@ -81,7 +92,7 @@ target-version = ["py310"]
 
 [tool.isort]
 profile = "black"
-src_paths = ["sonic_modbus", "tests"]
+src_paths = ["sonic_modbus", "sonic_persistence", "tests"]
 
 [tool.pylint.format]
 max-line-length = 88
@@ -94,7 +105,7 @@ spelling-private-dict-file = ".pylint-spelling-words"
 venvPath = "."
 venv = ".venv"
 pythonVersion = "3.10"
-include = ["sonic_modbus"]
+include = ["sonic_modbus", "sonic_persistence"]
 exclude = ["**/__pycache__"]
 typeCheckingMode = "basic"
 
@@ -102,6 +113,6 @@ typeCheckingMode = "basic"
 venvPath = "."
 venv = ".venv"
 pythonVersion = "3.10"
-include = ["sonic_modbus"]
+include = ["sonic_modbus", "sonic_persistence"]
 exclude = ["**/__pycache__"]
 typeCheckingMode = "basic"

@@ -1,150 +1,50 @@
-"""DFRobot SEN0658 sonic weather sensor Modbus RTU client.
+"""Modbus RTU client for the DFRobot SEN0658 sonic weather sensor."""
 
-Register map per official DFRobot wiki:
-https://wiki.dfrobot.com/sen0658/docs/21684
+import struct
 
-Sensor defaults: 4800 baud, 8N1, Modbus RTU, device address 1.
-
-Holding registers (function code 0x03):
-    0x01F4 (500): wind speed            (raw / 10.0 = m/s)
-    0x01F6 (502): wind direction        (0-7, 8-point compass, 0=N, 2=E)
-    0x01F7 (503): wind direction angle  (0-360°)
-    0x01F8 (504): humidity              (raw / 10.0 = %RH)
-    0x01F9 (505): temperature           (raw / 10.0 = °C, two's complement)
-    0x01FA (506): noise                 (raw / 10.0 = dB)
-    0x01FB (507): PM2.5                 (µg/m³)
-    0x01FC (508): PM10                  (µg/m³)
-    0x01FD (509): atmospheric pressure  (raw / 10.0 = kPa)
-    0x01FE (510): illumination high 16  (combined 32-bit = lux)
-    0x01FF (511): illumination low 16
-    0x0200 (512): illumination          (single register lux)
-    0x0201 (513): rainfall              (raw / 10.0 = mm)
-
-Configuration registers (function codes 0x03/0x06):
-    0x07D0 (2000): device address       (1-254, default 1)
-    0x07D1 (2001): baud rate            (0=2400 .. 7=1200)
-
-Calibration registers (function code 0x06):
-    0x6000 (24576): wind direction offset (0=normal, 1=180° offset)
-    0x6001 (24577): wind speed zeroing    (write 0xAA, wait 10s)
-    0x6002 (24578): rainfall zeroing      (write 0x5A)
-"""
-
-from enum import IntEnum
-
-from pydantic import BaseModel
+from pymodbus import ModbusException
 from pymodbus.client import ModbusSerialClient
-from pymodbus.exceptions import ModbusException
 
-DEFAULT_PORT = "/dev/ttyUSB0"
-DEFAULT_BAUDRATE = 4800
-DEFAULT_DEVICE_ID = 1
-
-# --- Sensor data registers (0x03 read) ---
-REG_WIND_SPEED = 0x01F4  # 500
-REG_WIND_DIRECTION = 0x01F6  # 502
-REG_WIND_ANGLE = 0x01F7  # 503
-REG_HUMIDITY = 0x01F8  # 504
-REG_TEMPERATURE = 0x01F9  # 505
-REG_NOISE = 0x01FA  # 506
-REG_PM25 = 0x01FB  # 507
-REG_PM10 = 0x01FC  # 508
-REG_ATM_PRESSURE = 0x01FD  # 509
-REG_LIGHT_HIGH = 0x01FE  # 510
-REG_LIGHT_LOW = 0x01FF  # 511
-REG_LIGHT = 0x0200  # 512
-REG_RAINFALL = 0x0201  # 513
-
-# Contiguous block 500-513 (14 registers)
-REG_DATA_START = 0x01F4  # 500
-REG_DATA_COUNT = 14
-
-# --- Configuration registers (0x03 read / 0x06 write) ---
-REG_DEVICE_ADDRESS = 0x07D0  # 2000
-REG_BAUD_RATE = 0x07D1  # 2001
-
-# --- Calibration registers (0x06 write only) ---
-REG_WIND_DIR_OFFSET = 0x6000  # 24576
-REG_WIND_SPEED_ZERO = 0x6001  # 24577
-REG_RAINFALL_ZERO = 0x6002  # 24578
-
-WIND_SPEED_ZERO_CMD = 0xAA
-RAINFALL_ZERO_CMD = 0x5A
-
-
-class BaudRate(IntEnum):
-    """Sensor baud rate configuration values."""
-
-    BAUD_2400 = 0
-    BAUD_4800 = 1
-    BAUD_9600 = 2
-    BAUD_19200 = 3
-    BAUD_38400 = 4
-    BAUD_57600 = 5
-    BAUD_115200 = 6
-    BAUD_1200 = 7
-
-    def to_int(self) -> int:
-        """Return the actual baud rate as an integer."""
-        return _BAUD_MAP[self]
-
-
-_BAUD_MAP = {
-    BaudRate.BAUD_1200: 1200,
-    BaudRate.BAUD_2400: 2400,
-    BaudRate.BAUD_4800: 4800,
-    BaudRate.BAUD_9600: 9600,
-    BaudRate.BAUD_19200: 19200,
-    BaudRate.BAUD_38400: 38400,
-    BaudRate.BAUD_57600: 57600,
-    BaudRate.BAUD_115200: 115200,
-}
-
-
-class WindDirection(IntEnum):
-    """8-point compass wind direction.
-
-    Per spec: 0=N increasing clockwise, 2=E.
-    """
-
-    N = 0
-    NE = 1
-    E = 2
-    SE = 3
-    S = 4
-    SW = 5
-    W = 6
-    NW = 7
-
-
-class SensorReading(BaseModel):
-    """Weather sensor reading from the SEN0658."""
-
-    wind_speed_ms: float
-    wind_direction: WindDirection
-    wind_angle_deg: int
-    humidity_pct: float
-    temperature_c: float
-    noise_db: float
-    pm25_ugm3: int
-    pm10_ugm3: int
-    atm_pressure_kpa: float
-    light_lux: int
-    rainfall_mm: float
-
-
-def _signed16(value: int) -> int:
-    """Convert unsigned 16-bit Modbus register to signed integer.
-
-    The sensor uses two's complement for negative temperatures.
-    """
-    if value >= 0x8000:
-        return value - 0x10000
-    return value
+from sonic_modbus.baud_rate import BaudRate
+from sonic_modbus.constants import (
+    DEFAULT_BAUDRATE,
+    DEFAULT_DEVICE_ID,
+    DEFAULT_PORT,
+    RAINFALL_ZERO_CMD,
+    REG_ATM_PRESSURE,
+    REG_BAUD_RATE,
+    REG_DATA_COUNT,
+    REG_DATA_START,
+    REG_DEVICE_ADDRESS,
+    REG_HUMIDITY,
+    REG_LIGHT_HIGH,
+    REG_LIGHT_LOW,
+    REG_NOISE,
+    REG_PM10,
+    REG_PM25,
+    REG_RAINFALL,
+    REG_RAINFALL_ZERO,
+    REG_TEMPERATURE,
+    REG_WIND_ANGLE,
+    REG_WIND_DIR_OFFSET,
+    REG_WIND_DIRECTION,
+    REG_WIND_SPEED,
+    REG_WIND_SPEED_ZERO,
+    WIND_SPEED_ZERO_CMD,
+)
+from sonic_modbus.sensor_reading import SensorReading
+from sonic_modbus.wind_direction import WindDirection
 
 
 class SonicSensor:
-    """Modbus RTU client for the DFRobot SEN0658 sonic weather sensor."""
+    """Modbus RTU client for the DFRobot SEN0658 sonic weather sensor.
+
+    Typical flow: construct → :meth:`connect` (or use as a context manager) →
+    :meth:`read` → :meth:`close`.
+
+    Construction does not open the serial port; see parameters on
+    :meth:`__init__`.
+    """
 
     def __init__(
         self,
@@ -153,6 +53,15 @@ class SonicSensor:
         device_id: int = DEFAULT_DEVICE_ID,
         timeout: float = 1.0,
     ):
+        """Configure the Modbus serial client; the port is opened by :meth:`connect`.
+
+        Args:
+            port: Serial device path (e.g. ``/dev/ttyUSB0``, ``COM3`` on Windows).
+            baudrate: Line speed in baud; must match the sensor (library default
+                matches the SEN0658 factory setting).
+            device_id: Modbus unit / slave address (1–254).
+            timeout: Socket timeout in seconds passed to pymodbus for I/O.
+        """
         self._device_id = device_id
         self._client = ModbusSerialClient(
             port=port,
@@ -217,7 +126,12 @@ class SonicSensor:
             wind_direction=wind_dir,
             wind_angle_deg=self._reg(regs, REG_WIND_ANGLE),
             humidity_pct=self._reg(regs, REG_HUMIDITY) / 10.0,
-            temperature_c=_signed16(self._reg(regs, REG_TEMPERATURE)) / 10.0,
+            temperature_c=(
+                struct.unpack(
+                    ">h", struct.pack(">H", self._reg(regs, REG_TEMPERATURE) & 0xFFFF)
+                )[0]
+                / 10.0
+            ),
             noise_db=self._reg(regs, REG_NOISE) / 10.0,
             pm25_ugm3=self._reg(regs, REG_PM25),
             pm10_ugm3=self._reg(regs, REG_PM10),

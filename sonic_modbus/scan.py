@@ -1,14 +1,10 @@
 """Scan Modbus RTU bus to discover the SEN0658 sensor and print readings."""
 
+from pymodbus import ModbusException
 from pymodbus.client import ModbusSerialClient
-from pymodbus.exceptions import ModbusException
 
-from sonic_modbus.sensor import (
-    DEFAULT_BAUDRATE,
-    DEFAULT_PORT,
-    REG_WIND_SPEED,
-    SonicSensor,
-)
+from sonic_modbus.constants import DEFAULT_BAUDRATE, DEFAULT_PORT, REG_WIND_SPEED
+from sonic_modbus.sensor import SonicSensor
 
 
 def scan() -> int | None:
