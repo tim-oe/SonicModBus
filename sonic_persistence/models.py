@@ -2,9 +2,11 @@
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, Integer, func
+from sqlalchemy import Float, Integer
 from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from sonic_persistence.types import LocalToUTCDateTime
 
 # ---------------------------------------------------------------------------
 # Reusable column type aliases
@@ -41,7 +43,7 @@ class SensorReadingEntity(Base):
         _UnsignedInt, primary_key=True, autoincrement=True
     )
     read_time: Mapped[datetime] = mapped_column(
-        DateTime, server_default=func.now(), nullable=False
+        LocalToUTCDateTime, nullable=False
     )
 
     wind_speed_ms: Mapped[float] = mapped_column(_UnsignedDouble)

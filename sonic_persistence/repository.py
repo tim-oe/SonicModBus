@@ -1,5 +1,7 @@
 """Repository for persisting and querying :class:`SensorReadingEntity` records."""
 
+from datetime import datetime
+
 from sonic_modbus.sensor_reading import SensorReading
 from sqlalchemy.orm import Session
 
@@ -34,6 +36,7 @@ class SensorReadingRepository:
             identity set.
         """
         entity = SensorReadingEntity(
+            read_time=datetime.now(),
             wind_speed_ms=reading.wind_speed_ms,
             wind_direction=int(reading.wind_direction),
             wind_angle_deg=reading.wind_angle_deg,

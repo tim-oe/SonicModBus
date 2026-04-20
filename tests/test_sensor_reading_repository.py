@@ -1,5 +1,7 @@
 """Tests for SensorReadingRepository using an in-memory SQLite database."""
 
+from datetime import datetime
+
 import pytest
 from sqlalchemy.orm import sessionmaker
 
@@ -72,6 +74,8 @@ class TestSensorReadingRepositorySave:
 
     def test_save_persists_all_fields(self, repo, sample_reading):
         entity = repo.save(sample_reading)
+        assert entity.read_time is not None
+        assert isinstance(entity.read_time, datetime)
         assert entity.wind_speed_ms == pytest.approx(sample_reading.wind_speed_ms)
         assert entity.wind_direction == int(sample_reading.wind_direction)
         assert entity.wind_angle_deg == sample_reading.wind_angle_deg
